@@ -28,6 +28,18 @@
  *    and a stack so C code then run, then calls bootmain()
  *
  *  * bootmain() in this file takes over, reads in the kernel and jumps to it.
+ * 
+ * 用中文完整总结一下asm.h，bootasm.S，和bootmain.c的功能吧。
+ * 实际上，asm.h只是定义了GDT的相关数据结构。
+ * 之后bootasm.S这个文件用来打开A20总线，seta20.1和seta20.2这两个代码片段就是完成这个功能
+ * 开启了A20总线以后，就可以将cr0寄存器中的最低一位置0，这样就打开了保护模式
+ * 之后这段代码开始准备GDT，总共准备了三个段，所以内存中有三个段描述符。因为ucore的设计是所有段都重叠
+ * 所以段选择子的base都是0。然后初始化一个堆栈，就把工作交给bootmain.c继续完成了
+ * bootmain.c的工作就是从硬盘中把系统引导的相关扇区加载到内存中
+ * 加载的方式是先加载elfheader，之后检验加载的是不是标准的elf文件，之后根据program header的数据
+ * 将整个elf文件，也就是系统引导文件，我们的ucore，加载到内存中的指定位置去，之后将控制权交给elf文件
+ * 至此，bootloader的功能就完成了，1、使能保护模式；2、完成分段功能；3、加载系统引导文件。
+ * 
  * */
 
 #define SECTSIZE        512
@@ -38,6 +50,12 @@ static void
 waitdisk(void) {
     while ((inb(0x1F7) & 0xC0) != 0x40)
         /* do nothing */;
+    //根据函数的定义，实际上这个函数的意思就是一直从0x1F7这个IO端口读一个byte，
+    //检查它的第五位和第六位，看是不是xx10xxxx这样，如果不是就一直循环。
+    //0x1f7是0号硬盘状态寄存器，https://blog.csdn.net/nkuzbp/article/details/7421904
+    //这个位是干嘛的呢，见https://www.history-of-my-life.com/wp-content/uploads/2018/04/硬盘状态寄存位.png
+    //https://blog.csdn.net/guzhou_diaoke/article/details/8479033
+    //这两个位的实际功能就是说明目前选中了硬盘的主盘，master drive，实际上是为载入第一个扇区做准备
 }
 
 /* readsect - read a single sector at @secno into @dst */
@@ -52,12 +70,21 @@ readsect(void *dst, uint32_t secno) {
     outb(0x1F5, (secno >> 16) & 0xFF);
     outb(0x1F6, ((secno >> 24) & 0xF) | 0xE0);
     outb(0x1F7, 0x20);                      // cmd 0x20 - read sectors
+    //0x1F2指定要读取的扇区数量，1F3是指从哪个扇区开始读，1F5和1F6分别是是指哪个柱面的高位字节和低位字节
+    //也就是用secno唯一地指定了某个扇区。
+    //因为1F7在读这个寄存器时（inb）是状态寄存器，写这个寄存器时是磁盘操作命令寄存器，写入0x20就是让他开始读
+    //在知乎上看到人说这几个寄存器只是为了兼容IDE硬盘的缘故才保留，现在已经不怎么用了，谁知道呢。
+    //从这里也看出，如果要兼容其他硬盘接口，就去找相应接口的标准文档吧。
+    //这里实际上涉及了一个secno和具体柱面、扇区的一个转换。也挺有意思。
+    //具体转换方式见https://blog.csdn.net/guzhou_diaoke/article/details/8479033
 
     // wait for disk to be ready
     waitdisk();
 
     // read a sector
     insl(0x1F0, dst, SECTSIZE / 4);
+    //就是从0x1F0这个端口（硬盘），读取512/4个双字(insl)长的数据（刚好512字节），到dst里面去
+    //读取的位置是之前用outb写的这些IO寄存器中用secno指定的。
 }
 
 /* *
@@ -66,13 +93,18 @@ readsect(void *dst, uint32_t secno) {
  * */
 static void
 readseg(uintptr_t va, uint32_t count, uint32_t offset) {
+    //根据上下文，va是要写的地址，count是指要写多少块扇区进去，offset是指开始读取的地方距离扇区开始的偏移量
+
     uintptr_t end_va = va + count;
+    //结束的地址，实际上用来控制循环的，读够了就停了。
 
     // round down to sector boundary
     va -= offset % SECTSIZE;
+    //如果offset不是整扇区，那么va也做适当的调整，以对齐，作用不明，猜测是为了防止一次没读完，接着读的情况
 
     // translate from bytes to sectors; kernel starts at sector 1
     uint32_t secno = (offset / SECTSIZE) + 1;
+    //指定从哪个扇区开始读，内核都是从第一个扇区开始
 
     // If this is too slow, we could read lots of sectors at a time.
     // We'd write more to memory than asked, but it doesn't matter --
@@ -80,6 +112,7 @@ readseg(uintptr_t va, uint32_t count, uint32_t offset) {
     for (; va < end_va; va += SECTSIZE, secno ++) {
         readsect((void *)va, secno);
     }
+    //然后开始读就是了
 }
 
 /* bootmain - the entry of bootloader */
@@ -87,11 +120,13 @@ void
 bootmain(void) {
     // read the 1st page off disk
     readseg((uintptr_t)ELFHDR, SECTSIZE * 8, 0);
+    //从硬盘的第一个扇区，读8个扇区，装载到ELFHDR指定的内存位置来。
 
     // is this a valid ELF?
     if (ELFHDR->e_magic != ELF_MAGIC) {
         goto bad;
     }
+    //发现装载进来的文件不是个ELF格式，那就跳到出错处理去
 
     struct proghdr *ph, *eph;
 
@@ -100,11 +135,13 @@ bootmain(void) {
     eph = ph + ELFHDR->e_phnum;
     for (; ph < eph; ph ++) {
         readseg(ph->p_va & 0xFFFFFF, ph->p_memsz, ph->p_offset);
+        //这就是elf的具体文件格式了，elf的program header里存着物理文件中的内存应该被装载到哪个内存地址去
     }
 
     // call the entry point from the ELF header
     // note: does not return
     ((void (*)(void))(ELFHDR->e_entry & 0xFFFFFF))();
+    //之后就交给elf，也就是系统，我们的ucore，来完成接下来的工作。
 
 bad:
     outw(0x8A00, 0x8A00);
@@ -113,4 +150,3 @@ bad:
     /* do nothing */
     while (1);
 }
-

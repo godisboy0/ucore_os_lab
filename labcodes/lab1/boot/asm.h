@@ -8,6 +8,9 @@
     .word 0, 0;                                                 \
     .byte 0, 0, 0, 0
 
+//.word的意思是就地生成一个字长度的数字，.byte是指就地生成一个字节长度的数
+//是指在内存地址这个位置直接生成一个字。是一种伪汇编代码。 
+
 #define SEG_ASM(type,base,lim)                                  \
     .word (((lim) >> 12) & 0xffff), ((base) & 0xffff);          \
     .byte (((base) >> 16) & 0xff), (0x90 | (type)),             \
@@ -23,4 +26,3 @@
 #define STA_A       0x1     // Accessed
 
 #endif /* !__BOOT_ASM_H__ */
-
