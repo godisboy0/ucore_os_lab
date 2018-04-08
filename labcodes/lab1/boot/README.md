@@ -13,7 +13,7 @@ bootmain.c的工作就是从硬盘中把系统引导的相关扇区加载到内�
 至此，bootloader的功能就完成了，1、使能保护模式；2、完成分段功能；3、加载系统引导文件。
 
 + 相关知识点
-    + 内嵌汇编。各种大坑
+    + 内嵌汇编。各种坑啊
     https://www.linuxprobe.com/gcc-how-to.html 这个贴讲的比较全面
     https://blog.csdn.net/ml_1995/article/details/51044260 这也是全面讲解
     https://blog.csdn.net/qq_15974389/article/details/76416668 gcc内嵌的各种限制字符
