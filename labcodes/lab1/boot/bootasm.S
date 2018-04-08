@@ -79,6 +79,7 @@ seta20.2:
     # Jump to next instruction, but in 32-bit code segment.
     # Switches processor into 32-bit mode.
     ljmp $PROT_MODE_CSEG, $protcseg
+    
     # 这是指跳到地址$PROT_MODE_CSEG:$protcseg的意思，这是逻辑地址的表示方式
     # $PROT_MODE_CSEG是段选择子的值，0x8，即001000b，根据段选择子的意思，实际上是选GDT表中的第2项
     # 特权级为0，这就清楚了。这样的话就是GDT的base（在ucore中为0），加protcseg的值，确定了一个地址。
