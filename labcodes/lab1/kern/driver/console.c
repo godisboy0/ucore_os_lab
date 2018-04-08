@@ -64,49 +64,66 @@ static uint16_t addr_6845;
 /* TEXT-mode CGA/VGA display output */
 static void
 cga_init(void) {
-    volatile uint16_t *cp = (uint16_t *)CGA_BUF;   //CGA_BUF: 0xB8000 (彩色显示的显存物理基址)
-    uint16_t was = *cp;                                            //保存当前显存0xB8000处的值
-    *cp = (uint16_t) 0xA55A;                                   // 给这个地址随便写个值，看看能否再读出同样的值
-    if (*cp != 0xA55A) {                                            // 如果读不出来，说明没有这块显存，即是单显配置
-        cp = (uint16_t*)MONO_BUF;                         //设置为单显的显存基址 MONO_BUF： 0xB0000
-        addr_6845 = MONO_BASE;                           //设置为单显控制的IO地址，MONO_BASE: 0x3B4
-    } else {                                                                // 如果读出来了，有这块显存，即是彩显配置
-        *cp = was;                                                      //还原原来显存位置的值
-        addr_6845 = CGA_BASE;                               // 设置为彩显控制的IO地址，CGA_BASE: 0x3D4 
+    volatile uint16_t *cp = (uint16_t *)CGA_BUF;            //CGA_BUF: 0xB8000 (彩色显示的显存物理基址)
+    uint16_t was = *cp;                                     //保存当前显存0xB8000处的值
+    *cp = (uint16_t) 0xA55A;                                //给这个地址随便写个值，看看能否再读出同样的值
+    if (*cp != 0xA55A) {                                    //如果读不出来，说明没有这块显存，即是单色配置
+        cp = (uint16_t*)MONO_BUF;                           //设置为单显的显存基址 MONO_BUF： 0xB0000
+        addr_6845 = MONO_BASE;                              //设置为单显控制的IO地址，MONO_BASE: 0x3B4
+    } else {                                                //如果读出来了，有这块显存，即是彩显配置
+        *cp = was;                                          //还原原来显存位置的值
+        addr_6845 = CGA_BASE;                               //设置为彩显控制的IO地址，CGA_BASE: 0x3D4 
     }
 
     // Extract cursor location
-    // 6845索引寄存器的index 0x0E（及十进制的14）== 光标位置(高位)
-    // 6845索引寄存器的index 0x0F（及十进制的15）== 光标位置(低位)
+    // 6845索引寄存器的index 0x0E（即十进制的14）== 光标位置(高位)
+    // 6845索引寄存器的index 0x0F（即十进制的15）== 光标位置(低位)
     // 6845 reg 15 : Cursor Address (Low Byte)
     uint32_t pos;
     outb(addr_6845, 14);                                        
-    pos = inb(addr_6845 + 1) << 8;                       //读出了光标位置(高位)
+    pos = inb(addr_6845 + 1) << 8;                          //读出了光标位置(高位)
     outb(addr_6845, 15);
-    pos |= inb(addr_6845 + 1);                             //读出了光标位置(低位)
+    pos |= inb(addr_6845 + 1);                              //读出了光标位置(低位)
 
-    crt_buf = (uint16_t*) cp;                                  //crt_buf是CGA显存起始地址
-    crt_pos = pos;                                                  //crt_pos是CGA当前光标位置
+    crt_buf = (uint16_t*) cp;                               //crt_buf是CGA显存起始地址
+    crt_pos = pos;                                          //crt_pos是CGA当前光标位置
 }
 
 static bool serial_exists = 0;
 
 static void
 serial_init(void) {
+
+    //通用串行控制器初始化，关于通用串行控制器是什么，可见http://synfare.com/599N105E/hwdocs/serial/serial01.html
+    //就是计算机之间或者计算机与外设之间相互连接的一种接口
+    //https://en.wikipedia.org/wiki/Serial_port
+    //百度就是纯垃圾，找个串行端口的概念差点没累死。要是不能上谷歌，简直要godie
+    //https://en.wikipedia.org/wiki/COM_(hardware_interface)
+
     // Turn off the FIFO
+    // https://blog.csdn.net/huangkangying/article/details/8070945
+    // 从上面的网址可知，一个串口在总线上有8个端口与之对应，COM1是0x3F8 - 0x3FF，COM2是0x2F8 - 0x2FF，etc.
+    // 这一点其实上面的#define里也有隐含的说明了
+    // 其中第2个，也就是下面的COM1+I2，在读取和写入的时候功能不一样。在写入的时候就是FIFO控制器，在读取的时候是中断指示器。
+    // 往这个端口写0是disable，写0xC7是enable FIFO
+    // http://synfare.com/599N105E/hwdocs/serial/serial04.html
+    // 上面这个网址介绍了读取是作为中断指示器时各bit的意义
     outb(COM1 + COM_FCR, 0);
 
     // Set speed; requires DLAB latch
+    // 把LCR（线控寄存器）的最高位配置为1，也就是set to 1 for setting/reading the divisor for baud rate on 0x3F8 and 0x3F9
+    // 设置波特率的意思
     outb(COM1 + COM_LCR, COM_LCR_DLAB);
     outb(COM1 + COM_DLL, (uint8_t) (115200 / 9600));
     outb(COM1 + COM_DLM, 0);
 
     // 8 data bits, 1 stop bit, parity off; turn off DLAB latch
+    // 设置一次传输的数据长度吧？我猜的。
     outb(COM1 + COM_LCR, COM_LCR_WLEN8 & ~COM_LCR_DLAB);
 
     // No modem controls
     outb(COM1 + COM_MCR, 0);
-    // Enable rcv interrupts
+    // Enable rcv interrupts，IER中断使能寄存器，如果设置的话会使用中断的方式来通信
     outb(COM1 + COM_IER, COM_IER_RDI);
 
     // Clear any preexisting overrun indications and interrupts

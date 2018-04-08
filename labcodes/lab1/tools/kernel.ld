@@ -45,6 +45,9 @@ SECTIONS {
 	}
 
 	PROVIDE(edata = .);
+	/* PROVIDE关键字的意思是在链接器层面提供这个符号，如果链接的文件里有定义这个符号，那就采用链接文件中的符号
+	 * 如果没有定义，那就用这里提供的符号http://sourceware.org/binutils/docs/ld/PROVIDE.html
+	 * 等于小数点中小数点的意思，是前面那个段尾的地址，也就是.data，elf数据段的段尾，后的第一个字节的地址
 
 	.bss : {
 		*(.bss)

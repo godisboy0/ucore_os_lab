@@ -10,13 +10,21 @@
 #include <pmm.h>
 #include <kmonitor.h>
 int kern_init(void) __attribute__((noreturn));
+//https://gcc.gnu.org/onlinedocs/gcc-4.6.4/gcc/Function-Attributes.html
+//GNU关于__attribute__的介绍，这是用来指定属性的， 用在这里是指定了该函数永不返回
+//用来提示编译器做一些或者不做一些工作，具体就不深究了
 void grade_backtrace(void);
 static void lab1_switch_test(void);
 
 int
 kern_init(void) {
     extern char edata[], end[];
+    //extern声明变量定义在其他地方，定义了两个字符数组。实际上定义在tools的kernel.ld这个链接文档中
+
     memset(edata, 0, end - edata);
+    //将这一段全部写成0，从edata开始，一直写end-edata这么多数量
+    //定义在string.c里。考虑到kernel.ld这个链接配置文件中对于edata和end的定义
+    //这一段实际是把.bbs段全部写0，.bbs段是定义而没有赋值的全局变量和静态变量
 
     cons_init();                // init the console
 
