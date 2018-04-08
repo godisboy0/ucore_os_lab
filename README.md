@@ -1,3 +1,4 @@
+笔记版，会把自己看代码和理解的所有过程都标注下来。
 INTRODUCTION
 ============
 ucore os labs was used as OS Experiments in OS Course Of Dept. of Computer Science & Technology, Tsinghua University.
