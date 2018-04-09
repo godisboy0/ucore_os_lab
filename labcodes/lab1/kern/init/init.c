@@ -25,8 +25,9 @@ kern_init(void) {
     //将这一段全部写成0，从edata开始，一直写end-edata这么多数量
     //定义在string.c里。考虑到kernel.ld这个链接配置文件中对于edata和end的定义
     //这一段实际是把.bbs段全部写0，.bbs段是定义而没有赋值的全局变量和静态变量
+    //也就是说之后遇到的所有已定义但没有复制的全局变量和静态变量，其初始值都是0
 
-    cons_init();                // init the console
+    cons_init();                // init the console，实际上初始化了CGA显示器和Keyboard输入
 
     const char *message = "(THU.CST) os is loading ...";
     cprintf("%s\n\n", message);

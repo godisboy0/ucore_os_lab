@@ -115,7 +115,8 @@ printfmt(void (*putch)(int, void*), void *putdat, const char *fmt, ...) {
  * */
 void
 vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap) {
-    register const char *p;
+    //register修饰符暗示编译程序相应的变量将被频繁地使用，如果可能的话，应将其保存在CPU的寄存器中，以加快其存储速度，常用于内存复制代码
+    register const char *p; 
     register int ch, err;
     unsigned long long num;
     int base, width, precision, lflag, altflag;

@@ -139,6 +139,10 @@ serial_init(void) {
 
 static void
 lpt_putc_sub(int c) {
+    //https://en.wikipedia.org/wiki/Parallel_port
+    //并行端口的意思，一般用于打印机。在ucore里应该就是并行端口打印机的意思，不知道为什么还要向打印机输出字符= =
+    //http://retired.beyondlogic.org/spp/parallel.htm 可见这个端口地址是BIOS赋值的
+    //向BASE+2地址写入00001101b的意思是选择打印机、初始化打印机、关闭自动换行（auto line feed），最低位是Strobe，还没搞明白啥意思
     int i;
     for (i = 0; !(inb(LPTPORT + 1) & 0x80) && i < 12800; i ++) {
         delay();
@@ -148,13 +152,15 @@ lpt_putc_sub(int c) {
     outb(LPTPORT + 2, 0x08);
 }
 
-/* lpt_putc - copy console output to parallel port */
+/* lpt_putc - copy console output to parallel port 只是为什么要复制？不太理解啊*/
 static void
 lpt_putc(int c) {
+    //"\b"是退格
     if (c != '\b') {
         lpt_putc_sub(c);
     }
     else {
+    //退格功能的实现可以说很有才了
         lpt_putc_sub('\b');
         lpt_putc_sub(' ');
         lpt_putc_sub('\b');
@@ -165,10 +171,20 @@ lpt_putc(int c) {
 static void
 cga_putc(int c) {
     // set black on white
+    // https://wiki.osdev.org/Text_UI
+    // With the rise of graphical UI's, text based user interfaces still remain practical
+    // in hobbyist operating system projects. 哈哈哈……这嘲讽！太不友善了。
+    // 根据这一个解释，这样的显存被设置成一个线性数组，里面一个地址对应屏幕一个位置，position = (y_position * characters_per_line) + x_position;
+    // 向这个位置写数据，就直接写到了(x,y)。根据前面的cga_init()，显然ucore要驱动的屏幕设置为80x25的了。
+    // 不过这个的确解释下面这个if是干嘛的，也就是说如果C存在高位，意思就是存在颜色代码，那么将前景色直接置为111b。
+    // 其他颜色不管。111b就是白色咯。
     if (!(c & ~0xFF)) {
         c |= 0x0700;
     }
-
+    
+    //下面的crt是指显示器缓存中字符的位置，crt是前面定义的全局变量，在init()函数中整个.bbs段写0，他也就写0了。
+    //以后这种全局变量的中值就不会再提示说是写0了，\n是换行符，\r是回车符（回到这一行首）。
+    //因此遇到\n直接加一行，遇到\r就要减去这一行已经输入的字符数量了
     switch (c & 0xff) {
     case '\b':
         if (crt_pos > 0) {
@@ -186,7 +202,8 @@ cga_putc(int c) {
         break;
     }
 
-    // What is the purpose of this?
+    // What is the purpose of this? 你这一个问号合适吗？你都不知道？
+    // 看起来是整个屏幕满了之后实现屏幕滚动的功能，就是把缓存区整个往上翻一行。这功能还是很明白的吧。
     if (crt_pos >= CRT_SIZE) {
         int i;
         memmove(crt_buf, crt_buf + CRT_COLS, (CRT_SIZE - CRT_COLS) * sizeof(uint16_t));
@@ -197,6 +214,8 @@ cga_putc(int c) {
     }
 
     // move that little blinky thing
+    // little blinky thing？就是指光标。移动光标位置。我感觉这肯定不是清华老师写的，虽然他看起来也逗比，但不像这种幽默风格🙄 
+    // 看来outb的输出数据中如果有高位，会直接被舍弃的。
     outb(addr_6845, 14);
     outb(addr_6845 + 1, crt_pos >> 8);
     outb(addr_6845, 15);
@@ -235,21 +254,26 @@ serial_putc(int c) {
 
 static struct {
     uint8_t buf[CONSBUFSIZE];
-    uint32_t rpos;
-    uint32_t wpos;
+    uint32_t rpos;  //指示读取的字符的位置，readpos我猜
+    uint32_t wpos;  //指示写入的字符的位置，writepos的意思我猜
 } cons;
 
 /* *
  * cons_intr - called by device interrupt routines to feed input
  * characters into the circular console input buffer.
  * */
+//下面程序是个处理硬件中断的通用程序，用来从硬件读取输入（feed input），放入环形的终端缓存
 static void
 cons_intr(int (*proc)(void)) {
+    //接受一个不接受参数，返回int的函数的指针为参数。
     int c;
     while ((c = (*proc)()) != -1) {
+        //等于-1说明键盘不可读，返回0表示从0x60端口读出来的值是e0，即需要再读一个byte来确定到底输入了什么
+        //如果不等于0的话，那就把这个值放到终端的缓存里面去。
         if (c != 0) {
             cons.buf[cons.wpos ++] = c;
             if (cons.wpos == CONSBUFSIZE) {
+                //果然是环形缓存
                 cons.wpos = 0;
             }
         }
@@ -292,6 +316,7 @@ serial_intr(void) {
 #define E0ESC           (1<<6)
 
 static uint8_t shiftcode[256] = {
+    //用的是scancode set1无疑
     [0x1D] CTL,
     [0x2A] SHIFT,
     [0x36] SHIFT,
@@ -384,17 +409,31 @@ kbd_proc_data(void) {
     static uint32_t shift;
 
     if ((inb(KBSTATP) & KBS_DIB) == 0) {
+        //读取键盘端口0x64的值，如果最后一位为0，则说明键盘的输出缓存状态为空。
+        //0x64这个端口读时为键盘状态寄存器，写时为键盘命令寄存器。
+        //https://wiki.osdev.org/%228042%22_PS/2_Controller#Buffer_Naming_Perspective
+        //这是古老的PS/2端口了，也就是那种圆口。现在计算机早都淘汰了，然而依然通过兼容处理保持了兼容。
         return -1;
     }
 
     data = inb(KBDATAP);
 
+    //http://kbd-project.org/docs/scancodes/scancodes-1.html 这些古老的文档啊，真是找死我了
+    //Below I'll only mention the scancode for key press (`make'). The scancode for key release (`break')
+    //is obtained from it by setting the high order bit (adding 0x80 = 128). 这两句话够理解这一段看不明白的代码了
+    //再根据下面的代码推断，ucore使用的scancode应该是scancode set1，已经弃用，但好的是，反正大部分机子会有翻译将set2翻译成set1
+    //之所以这么推断，是因为代码里键盘的break code就是make code直接加上0xC8，这是scancode set1的做法
+    //https://www.w3.org/2002/09/tests/keys.html 同时发现了这个好玩的页面
+    //于是虽然还是搞不懂为什么这里写E0是escape character，但是我理解这里的E0就是扩展代码的。比如e0-38是右alt，e0-1d是右ctrl，etc.
+    //这样下面的这一段if/else组合含义就比较明显了。如果是E0的话，需要读入下一个code才知道键盘到底发生了什么。如果下一个是0x80，那就说明
+    //这是个键盘break code（键盘释放的意思），如果不是说明是个make（键盘按下码）
+    //总之这一段就是处理e0的，因为e0总是要再读一个byte才知道到底表示什么键盘活动
     if (data == 0xE0) {
         // E0 escape character
-        shift |= E0ESC;
+        shift |= E0ESC;         //EOESC 0x40
         return 0;
     } else if (data & 0x80) {
-        // Key released
+        // Key released 看shiftcode数组，看来对code set1支持也不是很全
         data = (shift & E0ESC ? data : data & 0x7F);
         shift &= ~(shiftcode[data] | E0ESC);
         return 0;
@@ -405,8 +444,10 @@ kbd_proc_data(void) {
     }
 
     shift |= shiftcode[data];
+    //togglecode是一些锁定键，如CAPSLOCK,NUMSLOCK,SCROLLLOCK
     shift ^= togglecode[data];
 
+    //处理ctrl shift等特殊键，转化大小写
     c = charcode[shift & (CTL | SHIFT)][data];
     if (shift & CAPSLOCK) {
         if ('a' <= c && c <= 'z')
@@ -419,7 +460,7 @@ kbd_proc_data(void) {
     // Ctrl-Alt-Del: reboot
     if (!(~shift & (CTL | ALT)) && c == KEY_DEL) {
         cprintf("Rebooting!\n");
-        outb(0x92, 0x3); // courtesy of Chris Frost
+        outb(0x92, 0x3); // courtesy of Chris Frost，不会返回的函数
     }
     return c;
 }
@@ -433,6 +474,7 @@ kbd_intr(void) {
 static void
 kbd_init(void) {
     // drain the kbd buffer
+    // kbd是指键盘keyboard，所以这个意思是清空键盘缓存
     kbd_intr();
     pic_enable(IRQ_KBD);
 }
