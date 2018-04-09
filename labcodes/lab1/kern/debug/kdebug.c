@@ -213,6 +213,7 @@ debuginfo_eip(uintptr_t addr, struct eipdebuginfo *info) {
  * print_kerninfo - print the information about kernel, including the location
  * of kernel entry, the start addresses of data and text segements, the start
  * address of free memory and how many memory that kernel has used.
+ * 唔~
  * */
 void
 print_kerninfo(void) {

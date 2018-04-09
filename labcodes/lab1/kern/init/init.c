@@ -31,9 +31,20 @@ kern_init(void) {
 
     const char *message = "(THU.CST) os is loading ...";
     cprintf("%s\n\n", message);
+    //cprintf()的函数调用还是蛮深的，在下面画出来
+    /*
+                               (进行格式化)     (计算写入字符数)     (写入三个终端)   | -> lpt_putc()    -> lpt_putc_sub()
+    cprintf() -> vcprintf() -> vprintfmt() ->     cputch()   ->  cons_putc() -> | -> cga_putc()
+                                                                                | -> serial_putc() -> serial_putc_sub()
+    其中，最后的xxx_putc()都是处理一个退格的问题，xxx_putc_sub()是具体负责写入设备的具体工作
+    cga_putc()因为直接操作线性显存地址，所以不需要cga_putc_sub()。
+    cons_putc()先后调用了三个输出设备，应该是默认如果有接入相关输出设备，都应该输出的意思。
+    这个函数调用栈还是很值得借鉴的，很有意思。如何拆解函数功能？还得磨练啊。
+    */
 
     print_kerninfo();
 
+    //下面这个函数是用来追踪函数调用栈的，实际上就是lab1的一个实验操作。最后是让你把整个函数调用栈打印出来，哈哈。
     grade_backtrace();
 
     pmm_init();                 // init physical memory management
@@ -62,6 +73,7 @@ grade_backtrace1(int arg0, int arg1) {
     grade_backtrace2(arg0, (int)&arg0, arg1, (int)&arg1);
 }
 
+//有时函数比较短，会被gcc静默优化成inline模式，__attribute__((noinline))指定强制不inline
 void __attribute__((noinline))
 grade_backtrace0(int arg0, int arg1, int arg2) {
     grade_backtrace1(arg0, arg2);

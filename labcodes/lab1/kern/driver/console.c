@@ -7,6 +7,7 @@
 #include <trap.h>
 
 /* stupid I/O delay routine necessitated by historical PC design flaws */
+// 见https://stackoverflow.com/questions/27775517/why-do-we-need-to-delay-when-sending-char-to-serial-port
 static void
 delay(void) {
     inb(0x84);
@@ -104,7 +105,7 @@ serial_init(void) {
     // https://blog.csdn.net/huangkangying/article/details/8070945
     // 从上面的网址可知，一个串口在总线上有8个端口与之对应，COM1是0x3F8 - 0x3FF，COM2是0x2F8 - 0x2FF，etc.
     // 这一点其实上面的#define里也有隐含的说明了
-    // 其中第2个，也就是下面的COM1+I2，在读取和写入的时候功能不一样。在写入的时候就是FIFO控制器，在读取的时候是中断指示器。
+    // 其中第2个，也就是下面的COM1+2，在读取和写入的时候功能不一样。在写入的时候就是FIFO控制器，在读取的时候是中断指示器。
     // 往这个端口写0是disable，写0xC7是enable FIFO
     // http://synfare.com/599N105E/hwdocs/serial/serial04.html
     // 上面这个网址介绍了读取是作为中断指示器时各bit的意义
