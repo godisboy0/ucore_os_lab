@@ -308,7 +308,7 @@ print_stackframe(void) {
     for (i = 0; ebp != 0 && i < STACKFRAME_DEPTH; i ++) {
         cprintf("ebp:0x%08x eip:0x%08x args:", ebp, eip);
         uint32_t *args = (uint32_t *)ebp + 2;
-        for (j = 0; j < 4; j ++) {
+        for (j = 0; j < 4; j ++) {  //直接默认四个菜桉树也是丧心病狂……
             cprintf("0x%08x ", args[j]);
         }
         cprintf("\n");

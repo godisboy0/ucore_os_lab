@@ -16,6 +16,8 @@ int kern_init(void) __attribute__((noreturn));
 void grade_backtrace(void);
 static void lab1_switch_test(void);
 
+//在kernel.ld这个汇编器使用的文件中，用ENTRY(kern_init)指明了kern_init是整个内核引导程序的入口
+
 int
 kern_init(void) {
     extern char edata[], end[];

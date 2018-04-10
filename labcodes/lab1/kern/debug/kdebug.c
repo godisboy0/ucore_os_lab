@@ -7,6 +7,7 @@
 
 #define STACKFRAME_DEPTH 20
 
+//下面这两个数组地址是在kernel.ld文件中直接指定的。
 extern const struct stab __STAB_BEGIN__[];  // beginning of stabs table
 extern const struct stab __STAB_END__[];    // end of stabs table
 extern const char __STABSTR_BEGIN__[];      // beginning of string table
@@ -237,7 +238,7 @@ print_debuginfo(uintptr_t eip) {
         cprintf("    <unknow>: -- 0x%08x --\n", eip);
     }
     else {
-        char fnname[256];
+        char fnname[256];   //最早的时候函数名是限制在256个字符，后来放开了。不过谁会起那么长的名字啊，符号修饰也不会这么长好吧。
         int j;
         for (j = 0; j < info.eip_fn_namelen; j ++) {
             fnname[j] = info.eip_fn_name[j];
@@ -252,6 +253,7 @@ static __noinline uint32_t
 read_eip(void) {
     uint32_t eip;
     asm volatile("movl 4(%%ebp), %0" : "=r" (eip));
+    //这里是指取栈上ebp+4这个位置的值，也就是返回地址
     return eip;
 }
 
@@ -291,17 +293,39 @@ read_eip(void) {
  * */
 void
 print_stackframe(void) {
+    //先分析函数调用栈，画出下图
+    //init_kern() -> grade_backtrace{0,1,2}() -> mon_backtrace() -> print_stackfram()
+    //要知道函数调用是怎么压栈的，这是解题的关键。这些更为细节的内容可以参考《程序员的自我修养》第288页
+    //没有这本书的话，要么下电子版，要么去查一下这么几个概念：函数调用惯例、栈帧，ebp和esp
+    //简单地说，就是ebp和esp寄存器圈定了一个函数的栈帧(stack frame)，根据C语言的函数调用惯例，当调用一个函数时
+    //调用者负责将通用寄存器等数据压栈，之后call被调用者，被调用者首先将ebp压栈，此时esp指向调用者的栈底
+    //之后调用者movl %esp %ebp，movl src des，也就是将esp的值赋予ebp这时ebp就指向了被调用者的栈底
+    //而他指向的值，也就是刚刚压入的调用者的ebp，也就是调用者的栈底。而ebp+4这个位置，压入的就是返回地址。
+    //这个返回地址并不是调用者的函数起始地址，应该是调用语句下一句的地址。
      /* LAB1 YOUR CODE : STEP 1 */
      /* (1) call read_ebp() to get the value of ebp. the type is (uint32_t);
       * (2) call read_eip() to get the value of eip. the type is (uint32_t);
       * (3) from 0 .. STACKFRAME_DEPTH
       *    (3.1) printf value of ebp, eip
-      *    (3.2) (uint32_t)calling arguments [0..4] = the contents in address (uint32_t)ebp +2 [0..4]
+      *    (3.2) (uint32_t)calling arguments [0..4] = the contents in address (uint32_t)ebp + 2 [0..4]
+      *          在3.2的实现上遇到了点困难，我怎么知道函数总共几个参数呢？
       *    (3.3) cprintf("\n");
       *    (3.4) call print_debuginfo(eip-1) to print the C calling function name and line number, etc.
       *    (3.5) popup a calling stackframe
       *           NOTICE: the calling funciton's return addr eip  = ss:[ebp+4]
       *                   the calling funciton's ebp = ss:[ebp]
+      *           NITICE看不懂的，需要回到bootasm.S这个文件里，重新看一下段机制。其实就是cs:ip定位内存地址
       */
+     uint32_t ebp_var = read_ebp();     //ebp_var的值是一个32位指针。
+     uint32_t eip_var = read_eip();     //这里读出来的eip是当前指令的32位指针。
+     do{    //在每次循环里，让eip_var指向返回地址就行了，不过这里还有一个STACKFRAME_DEPTH，也就是最多允许20层调用，略少，这个条件我就不管了
+        cprintf("ebp = %d,eip = %d",ebp_var,eip_var);
+        //看答案这里直接默认参数是4个，for循环ebp+{2-6}，不太科学啊，我这里就不打了。
+        cprintf("\n");
+        print_debuginfo(eip_var-1);
+        eip_var = *((uint32_t *)(ebp_var) + 1);     //ebp_var本来就是一个指针
+        ebp_var = *((uint32_t *)(ebp_var));         //ebp_var指向的值是caller's ebp，答案中用了数组的方式，更取巧一些
+     }while(ebp_var != 0);  //因为根据bootmain.S中的代码，栈底的地址就是0
+
 }
 

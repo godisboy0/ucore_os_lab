@@ -8,8 +8,11 @@
  *
  * The kernel debugger can understand some debugging information in
  * the STABS format.  For more information on this format, see
- * http://sources.redhat.com/gdb/onlinedocs/stabs_toc.html
- *
+ * http://sources.redhat.com/gdb/onlinedocs/stabs_toc.html 这个网址失效了，shit
+ * https://sourceware.org/gdb/current/onlinedocs/stabs.html 用这个吧，其中1.1章节大概把这个概念讲清楚了
+ * 实际是编译器在编译内核的时候写进去的一段debug信息，比如用gcc -g，这个信息的作用，见下一行
+ * describes features of the source file like line numbers, the types and scopes of variables, and function names, parameters, and scopes.
+ * 如果有兴趣可以深究，暂时不深究了。
  * The constants below define some symbol types used by various debuggers
  * and compilers.  Kernel uses the N_SO, N_SOL, N_FUN, and N_SLINE types.
  * */
