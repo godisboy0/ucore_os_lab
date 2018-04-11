@@ -31,7 +31,10 @@ static struct pseudodesc idt_pd = {
     sizeof(idt) - 1, (uintptr_t)idt
 };
 
-/* idt_init - initialize IDT to each of the entry points in kern/trap/vectors.S */
+/* idt_init - initialize IDT to each of the entry points in kern/trap/vectors.S 
+* 中断描述符表。在实模式下，称相同功能的表为中断向量表，Interrupt Vector Table.
+* 这个表由
+*/
 void
 idt_init(void) {
      /* LAB1 YOUR CODE : STEP 2 */

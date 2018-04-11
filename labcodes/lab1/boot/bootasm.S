@@ -70,7 +70,8 @@ seta20.2:
     # identical to physical addresses, so that the
     # effective memory map does not change during the switch.
     lgdt gdtdesc
-    # 这一句是将dgtdesc的值加载到GDTR寄存器中
+    # 这一句是将dgtdesc的值加载到GDTR寄存器中，根据本文件最后3行的代码可知，gdtdesc的值是48位的。经查证，GTDR也是48位的
+    # 还有后面的IDTR，即中断描述符寄存器，也是48位的。
     movl %cr0, %eax
     orl $CR0_PE_ON, %eax
     movl %eax, %cr0

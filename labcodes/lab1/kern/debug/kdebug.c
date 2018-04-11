@@ -325,7 +325,7 @@ print_stackframe(void) {
         print_debuginfo(eip_var-1);
         eip_var = *((uint32_t *)(ebp_var) + 1);     //ebp_var本来就是一个指针
         ebp_var = *((uint32_t *)(ebp_var));         //ebp_var指向的值是caller's ebp，答案中用了数组的方式，更取巧一些
-     }while(ebp_var != 0);  //因为根据bootmain.S中的代码，栈底的地址就是0
+     } while(ebp_var != 0);  //因为根据bootmain.S中的代码，栈底的地址就是0
 
 }
 

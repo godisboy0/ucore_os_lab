@@ -25,10 +25,13 @@ static inline void outw(uint16_t port, uint16_t data) __attribute__((always_inli
 static inline uint32_t read_ebp(void) __attribute__((always_inline));
 
 /* Pseudo-descriptors used for LGDT, LLDT(not used) and LIDT instructions. */
+// 段描述符寄存器和中断描述符寄存器的数据结构。前16位是长度，后32位是基址。
 struct pseudodesc {
     uint16_t pd_lim;        // Limit
     uint32_t pd_base;        // Base address
 } __attribute__ ((packed));
+//__attribute__ ((packed)) 的作用就是告诉编译器取消结构在编译过程中的优化对齐,按照实际占用字节数进行对齐
+//主要是因为GDTR和IDTR寄存器的长度都是48位的，如果编译器优化对齐了，就放不进去了。
 
 static inline void lidt(struct pseudodesc *pd) __attribute__((always_inline));
 static inline void sti(void) __attribute__((always_inline));
