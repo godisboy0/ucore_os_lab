@@ -14,6 +14,10 @@
  *   - create a TSS descriptor entry in GDT
  *   - add enough information to the TSS in memory as needed
  *   - load the TR register with a segment selector for that segment
+ * 
+ * CPL: Current privilege level 当前特权等级
+ * DPL: Descriptor Privilege Level 段描述符的特权等级
+ * 参见: https://en.wikipedia.org/wiki/Protection_ring#Privilege_level
  *
  * There are several fileds in TSS for specifying the new stack pointer when a
  * privilege level change happens. But only the fields SS0 and ESP0 are useful
@@ -37,7 +41,8 @@ static struct taskstate ts = {0};
  *   - 0x10:  kernel data segment
  *   - 0x18:  user code segment
  *   - 0x20:  user data segment
- *   - 0x28:  defined for tss, initialized in gdt_init
+ *   - 0x28:  defined for tss, initialized in gdt_init 00101000b,对于段选择子的意思就是，特权级为0，第0段，GDT表中第五项
+ * 这里重绘了整张GDT https://en.wikipedia.org/wiki/Global_Descriptor_Table 这是GDT表项的格式。
  * */
 static struct segdesc gdt[] = {
     SEG_NULL,
@@ -71,7 +76,11 @@ lgdt(struct pseudodesc *pd) {
 /* temporary kernel stack */
 uint8_t stack0[1024];
 
-/* gdt_init - initialize the default GDT and TSS */
+/* gdt_init - initialize the default GDT and TSS
+ * 其实这个gdt_init()倒没有太多好说的，实际上是重新绘制了一个GDT，并重新装载了GDTR
+ * 重新绘制的主要原因是区分了内核代码段、内核数据段、用户代码段、用户数据段，并增添了TSS段。
+ * 说实话到现在还没太整明白TSS和段选择子有什么关系。
+*/
 static void
 gdt_init(void) {
     // Setup a TSS so that we can get the right stack when we trap from

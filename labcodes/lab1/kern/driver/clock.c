@@ -31,7 +31,7 @@ volatile size_t ticks;
  * */
 void
 clock_init(void) {
-    // set 8253 timer-chip
+    // set 8253 timer-chip https://en.wikipedia.org/wiki/Intel_8253
     outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
     outb(IO_TIMER1, TIMER_DIV(100) % 256);
     outb(IO_TIMER1, TIMER_DIV(100) / 256);

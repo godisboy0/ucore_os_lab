@@ -48,7 +48,7 @@ kern_init(void) {
     //下面这个函数是用来追踪函数调用栈的，实际上就是lab1的一个实验操作。最后是让你把整个函数调用栈打印出来，哈哈。
     grade_backtrace();
 
-    pmm_init();                 // init physical memory management
+    pmm_init();                 // init physical memory management, 这个函数很有意思，相当于把GDT重新设置一下，并重新加载了GDTR
 
     pic_init();                 // init interrupt controller
     idt_init();                 // init interrupt descriptor table
