@@ -20,6 +20,8 @@
         "functional": "c",
         "limits": "c",
         "ratio": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "error.h": "c",
+        "clock.h": "c"
     }
 }

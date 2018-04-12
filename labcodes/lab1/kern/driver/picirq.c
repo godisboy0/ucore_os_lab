@@ -9,8 +9,8 @@
 //Intel-8259：  https://en.wikipedia.org/wiki/Intel_8259
 //IRQ：         https://en.wikipedia.org/wiki/Interrupt_request_(PC_architecture)
 //PIC：         https://en.wikipedia.org/wiki/Programmable_interrupt_controller
-//APIC：        https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller
-//PIC2：        http://retired.beyondlogic.org/interrupts/interupt.htm
+//APIC：        https://wiki.osdev.org/APIC
+//PIC2：        http://retired.beyondlogic.org/interrupts/interupt.htm 需要注意的是，这个网页对IVT的介绍好像不对，IVT的介绍应该看下面68行
 //IMR：         https://en.wikipedia.org/wiki/Programmable_interrupt_controller 
 //被这个芯片以及相关概念折腾了一天的一个收获是，以后遇到这种与特定硬件结合紧密的概念，最好先去查一下硬件资料，比如刚开始看了
 //一大堆仍然不是很明白的概念，查了Intel-8259的介绍就清楚多了。
@@ -54,7 +54,7 @@ pic_init(void) {
 
     // ICW1:  0001g0hi
     //    g:  0 = edge triggering, 1 = level triggering
-    //    边缘出发还是条件触发，说白了就是中断触发的具体方式不同，作为用户没有了解detail的必要。
+    //    边缘触发还是条件触发，说白了就是中断触发的具体方式不同，作为用户没有了解detail的必要。
     //    见： https://en.wikipedia.org/wiki/Interrupt#Level-triggered
     //    h:  0 = cascaded PICs, 1 = master only
     //    因为slave PIC的信号需要映射到master PIC的第二位，所以第二位写1就相当于把slave PIC屏蔽了
@@ -71,6 +71,7 @@ pic_init(void) {
     // hardware interrupts may be mapped to any of the vectors by way of a programmable interrupt controller.
     // 意思是在PIC里，硬件中断处理例程的地址可以被装载到任意index的表项里面去。
     // IDT的起始地址存在IDTR中，这是CPU的一个寄存器，与GDTR相似，这个寄存器有48位。
+    // https://en.wikipedia.org/wiki/Interrupt_descriptor_table
     outb(IO_PIC1 + 1, IRQ_OFFSET);
 
     // ICW3:  (master PIC) bit mask of IR lines connected to slaves
@@ -104,7 +105,7 @@ pic_init(void) {
     //   rs:  0x = NOP, 10 = read IRR, 11 = read ISR
     outb(IO_PIC1, 0x68);    // clear specific mask
     //不对吧，0x68是01101000b，第ef位是11，应该是set specific mask才对啊
-    //这里本来的意思是清除在本文件47、48行设置的mask吗？
+    //这里本来的意思是清除在本文件50，51行设置的mask吗？
     outb(IO_PIC1, 0x0a);    // read IRR by default
 
     outb(IO_PIC2, 0x68);    // OCW3
@@ -119,7 +120,9 @@ pic_init(void) {
     * 如系统调用，调用后就直接陷入系统内核进行处理了，处理完之后再返回调用处继续工作。这和异步的硬件中断其实相差很大。
     * 在这里我们讨论这段代码主要处理的硬件中断。
     * 所谓硬件中断，一般是因为IO设备引起的，比如键盘、鼠标、网络设备等。
-    * 早期的计算机（就是ucore这段代码试图驱动的计算机硬件），共设计了16条硬件中断line，因为line8到15映射到line2
+    * 早期的计算机（就是ucore这段代码试图驱动的计算机硬件）硬件，比如8259，在设计上区分了master和slave PIC
+    * 其中master PIC下最多可以挂载8个slave PIC，也就是最多可以扩展到64个中断线，这就是ICW3做的事。（参见PIC2那个网页）
+    * 一般挂载一个slave到master的line2，这就总共有了16条硬件中断line，因为line8到15映射到line2
     * 所以实际可用的是15条中断线，分别对应15种硬件中断，比如时钟中断、串口、并口、键盘等
     * 其中中断线0-7由PIC1控制，8-15由PIC2控制。
     * 当相关硬件准备好之后，就会将相应的中断线置为活动。此时所有的中断数据首先经过一个中断屏蔽器，如果被屏蔽了，就over

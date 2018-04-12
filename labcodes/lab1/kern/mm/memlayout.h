@@ -11,6 +11,8 @@
 #define SEG_TSS        5
 
 /* global descriptor numbers */
+//段选择子的值，这在bootasm.S里介绍过了。因为我们这个比较简单粗暴。0x8h就是说GDT表中第2项（index是1）
+//根据bootasm.S里的值，这下面的意思都是可读可执行的段。
 #define GD_KTEXT    ((SEG_KTEXT) << 3)        // kernel text
 #define GD_KDATA    ((SEG_KDATA) << 3)        // kernel data
 #define GD_UTEXT    ((SEG_UTEXT) << 3)        // user text
