@@ -22,6 +22,9 @@
         "ratio": "c",
         "type_traits": "c",
         "error.h": "c",
-        "clock.h": "c"
+        "clock.h": "c",
+        "kdebug.h": "c",
+        "assert.h": "c",
+        "defs.h": "c"
     }
 }

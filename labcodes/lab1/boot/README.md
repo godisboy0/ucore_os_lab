@@ -21,6 +21,8 @@
     
     将整个elf文件，也就是系统引导文件，我们的ucore，加载到内存中的指定位置去，之后将控制权交给elf文件
 
+    系统会跳到elf文件的entry来继续执行，这个entry，根据kern/tools/kernel.ld文件，被设定为kern/init/init.c文件中的kern_init()函数
+
     至此，bootloader的功能就完成了，1、使能保护模式；2、完成分段功能；3、加载系统引导文件。
 
 + 相关知识点

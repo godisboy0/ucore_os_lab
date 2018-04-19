@@ -34,7 +34,7 @@ kern_init(void) {
     cprintf("%s\n\n", message);
     //cprintf()的函数调用还是蛮深的，在下面画出来
     /*
-                              (进行格式化)     (计算写入字符数)     (写入三个终端)   | -> lpt_putc()    -> lpt_putc_sub()
+                              (进行格式化)     (计算写入字符数)     (写入三个终端)    | -> lpt_putc()    -> lpt_putc_sub()
     cprintf() -> vcprintf() -> vprintfmt() ->     cputch()   ->  cons_putc() -> | -> cga_putc()
                                                                                 | -> serial_putc() -> serial_putc_sub()
     其中，最后的xxx_putc()都是处理一个退格的问题，xxx_putc_sub()是具体负责写入设备的具体工作
