@@ -232,7 +232,7 @@ struct taskstate {
 #define PDXSHIFT        22                      // offset of PDX in a linear address
 
 /* page table/directory entry flags */
-#define PTE_P           0x001                   // Present
+#define PTE_P           0x001                   // Present，表示该页表项是否有效，即是否建立了正确的映射关系
 #define PTE_W           0x002                   // Writeable
 #define PTE_U           0x004                   // User
 #define PTE_PWT         0x008                   // Write-Through
@@ -244,6 +244,8 @@ struct taskstate {
 #define PTE_AVAIL       0xE00                   // Available for software use
                                                 // The PTE_AVAIL bits aren't used by the kernel or interpreted by the
                                                 // hardware, so user processes are allowed to set them arbitrarily.
+//https://blog.csdn.net/longintchar/article/details/52166130 页表中标志位的意义见此
+//PWT和PCD位的意义见https://blog.csdn.net/linweig/article/details/5327002，就是Cache如何写的问题
 
 #define PTE_USER        (PTE_U | PTE_W | PTE_P)
 

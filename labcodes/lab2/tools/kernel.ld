@@ -3,6 +3,9 @@
 
 OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
 OUTPUT_ARCH(i386)
+
+/* 可以看到，这个ld文件和之前的ld文件不一样了，首先这个ENTRY就不一样，lab1的是kern_init()
+   这里是kern_entry()，这是在/kern/init/entry.S中指定的 */
 ENTRY(kern_entry)
 
 SECTIONS {
